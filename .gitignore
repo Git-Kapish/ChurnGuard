@@ -1,5 +1,5 @@
 # Data (raw is read-only and never committed; a checksum file is kept locally)
-data/
+/data/
 
 # Experiment tracking and artifacts
 mlruns/

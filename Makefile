@@ -18,6 +18,7 @@ setup:
 
 data:
 	"$(PY)" scripts/download_data.py
+	"$(PY)" -m churnguard.data.prepare
 
 # Stubs below fail loudly until their block lands (see BUILD_PROMPTS.md).
 train:
