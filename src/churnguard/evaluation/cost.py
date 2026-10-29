@@ -89,6 +89,56 @@ def best_top_k(scores: np.ndarray, values: np.ndarray, max_k: int) -> Decision:
     return Decision(float("inf") if k == 0 else float(scores[order][k - 1]), k, float(totals[k]))
 
 
+@dataclass(frozen=True)
+class CampaignPlan:
+    """A budget-limited retention campaign over a scored customer pool (simulation only)."""
+
+    order: np.ndarray  # pool row positions, highest churn probability first
+    n_targeted: int
+    spend: float
+    expected_net_value: float  # model-expected: sum of p * s * V - c over the target list
+    expected_saves: float  # model-expected number of churners saved: sum of p * s
+    churners_reached: int | None  # actual churners on the list (needs labels)
+    realized_net_value: float | None  # label-based net value of the list (needs labels)
+
+    @property
+    def targets(self) -> np.ndarray:
+        """Pool row positions on the target list, in rank order."""
+        return self.order[: self.n_targeted]
+
+
+def plan_campaign(proba: np.ndarray, b: Business, y_true: np.ndarray | None = None) -> CampaignPlan:
+    """Contact the highest-risk customers the budget allows, never one with negative value.
+
+    The list length is min(budget / offer cost, customers whose model-expected value is
+    positive), so a generous budget does not make us contact customers below break-even.
+    """
+    p = np.asarray(proba, dtype=float)
+    order = np.argsort(-p, kind="stable")
+    k = min(b.max_targets, int((expected_value(p, b) > 0).sum()))
+    chosen = order[:k]
+    realized = reached = None
+    if y_true is not None:
+        y = np.asarray(y_true)
+        realized = float(realized_value(y[chosen], b).sum())
+        reached = int(y[chosen].sum())
+    return CampaignPlan(
+        order=order,
+        n_targeted=k,
+        spend=k * b.offer_cost,
+        expected_net_value=float(expected_value(p[chosen], b).sum()),
+        expected_saves=float(p[chosen].sum() * b.success_rate),
+        churners_reached=reached,
+        realized_net_value=realized,
+    )
+
+
+def cumulative_expected_value(proba: np.ndarray, b: Business) -> np.ndarray:
+    """Model-expected net value after contacting the top-1, top-2, ... customers by risk."""
+    p = np.sort(np.asarray(proba, dtype=float))[::-1]
+    return np.cumsum(expected_value(p, b))
+
+
 def compare_strategies(
     y_true: np.ndarray, proba: np.ndarray, b: Business, threshold: float
 ) -> dict[str, dict[str, float]]:

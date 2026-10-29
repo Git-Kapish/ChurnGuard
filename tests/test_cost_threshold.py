@@ -6,7 +6,9 @@ from churnguard.evaluation.cost import (
     best_threshold,
     best_top_k,
     compare_strategies,
+    cumulative_expected_value,
     expected_value,
+    plan_campaign,
     realized_value,
 )
 
@@ -79,6 +81,49 @@ def test_compare_strategies_known_values() -> None:
     assert s["chosen_threshold"]["net_value"] == pytest.approx(2 * win + 2 * loss)
     assert s["chosen_threshold"]["share_of_churners_reached"] == 1.0
     assert s["best_top_k_within_budget"]["net_value"] == pytest.approx(2 * win)
+
+
+def test_campaign_is_limited_by_the_budget() -> None:
+    p = np.array([0.1, 0.9, 0.6, 0.8, 0.7])
+    b = Business(offer_cost=20, success_rate=0.3, clv=500, budget=40)  # pays for 2 offers
+    plan = plan_campaign(p, b)
+    assert plan.n_targeted == 2 and list(plan.targets) == [1, 3]  # the 0.9 and 0.8 customers
+    assert plan.spend == 40
+    assert plan.expected_net_value == pytest.approx((0.9 * 150 - 20) + (0.8 * 150 - 20))
+    assert plan.expected_saves == pytest.approx((0.9 + 0.8) * 0.3)
+    assert plan.realized_net_value is None and plan.churners_reached is None
+
+
+def test_campaign_never_contacts_customers_below_breakeven() -> None:
+    p = np.array([0.9, 0.5, 0.1, 0.05])  # break-even is 0.1333
+    b = Business(offer_cost=20, success_rate=0.3, clv=500, budget=10_000)
+    plan = plan_campaign(p, b)
+    assert plan.n_targeted == 2 and plan.spend == 40
+
+
+def test_campaign_with_outcomes_reports_actual_value() -> None:
+    p = np.array([0.1, 0.9, 0.6, 0.8, 0.7])
+    y = np.array([0, 1, 0, 0, 1])
+    b = Business(offer_cost=20, success_rate=0.3, clv=500, budget=40)
+    plan = plan_campaign(p, b, y)  # contacts customers 1 (churner) and 3 (not a churner)
+    assert plan.churners_reached == 1
+    assert plan.realized_net_value == pytest.approx((150 - 20) + (-20))
+
+
+def test_campaign_edge_cases_zero_budget_and_nothing_worth_contacting() -> None:
+    p = np.array([0.9, 0.5])
+    none = plan_campaign(p, Business(20, 0.3, 500, budget=0))
+    assert none.n_targeted == 0 and none.spend == 0 and none.expected_net_value == 0
+    hopeless = plan_campaign(p, Business(offer_cost=1e6, success_rate=0.3, clv=500, budget=1e9))
+    assert hopeless.n_targeted == 0
+
+
+def test_cumulative_expected_value_peaks_at_the_breakeven_customer() -> None:
+    p = np.array([0.05, 0.9, 0.5, 0.1])
+    curve = cumulative_expected_value(p, DEFAULT)
+    assert curve[-1] == pytest.approx(expected_value(p, DEFAULT).sum())
+    assert int(np.argmax(curve)) + 1 == 2  # only 0.9 and 0.5 clear the 0.1333 break-even
+    assert curve[0] == pytest.approx(0.9 * 150 - 20)
 
 
 def test_budget_rule_does_not_exceed_cap_with_tied_probabilities() -> None:

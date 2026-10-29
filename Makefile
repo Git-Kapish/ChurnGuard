@@ -38,7 +38,7 @@ api:
 	"$(PY)" -m uvicorn churnguard.api.main:app --port 8000
 
 app:
-	"$(PY)" scripts/not_implemented.py app "Block 7"
+	"$(PY)" -m streamlit run app/streamlit_app.py --server.port 8501
 
 mlflow:
 	"$(PY)" -m mlflow ui --backend-store-uri sqlite:///mlruns/mlflow.db --default-artifact-root ./mlruns/artifacts

@@ -1,0 +1,5 @@
+[server]
+headless = true        # no first-run email prompt (also what the Docker image needs)
+
+[browser]
+gatherUsageStats = false

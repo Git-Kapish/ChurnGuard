@@ -3,7 +3,6 @@
 Run with `make api` (uvicorn churnguard.api.main:app --port 8000); docs at /docs.
 """
 
-import io
 import logging
 import threading
 import time
@@ -11,12 +10,10 @@ from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from typing import Annotated, Any
 
-import pandas as pd
 from fastapi import FastAPI, File, HTTPException, Request, Response, UploadFile
-from pydantic import ValidationError
 
+from churnguard.api.csv_input import MAX_CSV_BYTES, CsvInputError, parse_customers_csv
 from churnguard.api.schemas import (
-    MAX_BATCH,
     BatchRequest,
     BatchResponse,
     Customer,
@@ -27,10 +24,6 @@ from churnguard.api.schemas import (
 from churnguard.predict import Predictor, get_predictor
 
 log = logging.getLogger("churnguard.api")
-MAX_CSV_BYTES = 2_000_000  # ~7x what 1,000 customers need; rejects anything absurd early
-MAX_CSV_ERRORS_SHOWN = 5
-OPTIONAL_COLUMNS = {"customerID", "TotalCharges"}  # blank cells mean "not provided"
-SCORE_COLUMNS = ["churn_probability", "risk_tier", "will_target", "top_reasons"]
 DESCRIPTION = (
     "Scores telecom customers for churn risk. `will_target` is true when the probability is at "
     "or above a threshold chosen to maximize an **assumption-driven** simulated net value "
@@ -111,40 +104,10 @@ def create_app(predictor_factory: Callable[[], Predictor] = get_predictor) -> Fa
         request: Request, file: Annotated[UploadFile, File()], explain: bool = True
     ) -> Response:
         """Upload a CSV of customers (dataset columns); get it back with score columns added."""
-        raw = file.file.read(MAX_CSV_BYTES + 1)
-        if len(raw) > MAX_CSV_BYTES:
-            raise HTTPException(status_code=413, detail=f"CSV larger than {MAX_CSV_BYTES} bytes")
         try:
-            df = pd.read_csv(io.BytesIO(raw), dtype=str, keep_default_na=False)
-        except (pd.errors.ParserError, pd.errors.EmptyDataError, UnicodeDecodeError) as exc:
-            raise HTTPException(status_code=400, detail=f"could not read CSV: {exc}") from exc
-        if df.empty:
-            raise HTTPException(status_code=422, detail="CSV has no rows")
-        if len(df) > MAX_BATCH:
-            raise HTTPException(status_code=422, detail=f"at most {MAX_BATCH} rows per CSV")
-        fields = list(Customer.model_fields)
-        missing = [f for f in fields if f not in df.columns and f not in OPTIONAL_COLUMNS]
-        if missing:
-            raise HTTPException(status_code=422, detail=f"missing columns: {missing}")
-
-        records, errors = [], []
-        # absent optional columns become blank cells, which are then treated as "not provided"
-        for i, row in enumerate(df.reindex(columns=fields, fill_value="").to_dict("records")):
-            row = {
-                k: v for k, v in row.items() if not (k in OPTIONAL_COLUMNS and not str(v).strip())
-            }
-            try:
-                records.append(Customer.model_validate(row).model_dump(mode="json"))
-            except ValidationError as exc:
-                first = exc.errors()[0]
-                errors.append(f"row {i + 2}: {'.'.join(map(str, first['loc']))}: {first['msg']}")
-        if errors:
-            shown = errors[:MAX_CSV_ERRORS_SHOWN]
-            more = len(errors) - len(shown)
-            raise HTTPException(
-                status_code=422, detail=shown + ([f"... {more} more"] if more else [])
-            )
-
+            df, records = parse_customers_csv(file.file.read(MAX_CSV_BYTES + 1))
+        except CsvInputError as exc:
+            raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
         results = score(request, records, explain)
         out = df.copy()
         out["churn_probability"] = [r["churn_probability"] for r in results]

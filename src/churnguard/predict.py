@@ -82,6 +82,15 @@ class Predictor:
             for cid, p, r in zip(ids, proba, reasons, strict=True)
         ]
 
+    def attribute_table(self, customer: dict[str, Any]) -> tuple[float, pd.DataFrame]:
+        """(base-model baseline log-odds, per-attribute contributions) for one customer.
+
+        Same preparation as predict(); contributions are SHAP on the base estimator, so
+        baseline + sum(impact) is the base model's log-odds, not the calibrated probability.
+        """
+        X = self.prepare([customer])
+        return self.explainer.base_value, self.explainer.attribute_table(X)
+
 
 @lru_cache(maxsize=1)
 def get_predictor() -> Predictor:

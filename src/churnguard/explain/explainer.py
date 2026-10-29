@@ -80,6 +80,26 @@ class Explainer:
         sv = self.shap_values(X)
         return sv.T.groupby(self.column_group).sum().T
 
+    def attribute_table(self, X: pd.DataFrame) -> pd.DataFrame:
+        """Every customer attribute for ONE customer: group, plain-English value, SHAP impact.
+
+        Sorted by absolute impact, largest first. Feeds the dashboard's waterfall chart.
+        """
+        if len(X) != 1:
+            raise ValueError("attribute_table explains exactly one customer")
+        row = self.engineer.transform(X).iloc[0]
+        impact = self.group_contributions(X).iloc[0]
+        table = pd.DataFrame(
+            {
+                "group": impact.index,
+                "value": [PHRASES[g](row) for g in impact.index],
+                "impact": impact.to_numpy(),
+            }
+        )
+        return table.reindex(table["impact"].abs().sort_values(ascending=False).index).reset_index(
+            drop=True
+        )
+
     def reasons(self, X: pd.DataFrame) -> list[list[dict]]:
         """Plain-English reasons per customer: top 5 raising risk, then top 3 lowering it."""
         engineered = self.engineer.transform(X)

@@ -21,3 +21,4 @@ htmlcov/
 # Secrets / local
 .env
 .claude/
+.playwright-mcp/
