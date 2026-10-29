@@ -1,0 +1,40 @@
+# Model / search settings. Business numbers live in business.yaml.
+seed: 42
+
+split:
+  train: 0.70
+  val: 0.15
+  test: 0.15
+
+cv:
+  n_splits: 5
+
+models:
+  - dummy
+  - logistic_regression
+  - random_forest
+  - xgboost
+  - lightgbm
+
+imbalance:
+  strategies: [class_weight, smote]
+
+tuning:
+  library: optuna
+  n_trials: 30        # reduce to 20 only if too slow (PRD s10 buffer)
+  n_top_models: 2
+  metric: pr_auc
+
+calibration:
+  methods: [isotonic, sigmoid]   # chosen on validation
+
+risk_tiers:            # probability cutoffs: Low < medium, Medium < high, High otherwise
+  medium: 0.25
+  high: 0.50
+
+api:
+  max_batch_size: 1000
+
+mlflow:
+  tracking_uri: mlruns
+  experiment_name: churnguard

@@ -1,0 +1,6 @@
+# ASSUMPTIONS, not measured facts. All profit/net-value outputs are an assumption-driven
+# simulation and must be labeled as such in the UI, README and model card.
+# Expected net value per targeted customer = p * offer_success_rate * customer_lifetime_value - retention_offer_cost
+retention_offer_cost: 20       # cost of contacting/discounting one customer
+offer_success_rate: 0.30       # fraction of true churners saved by an offer
+customer_lifetime_value: 500   # value kept when a churner is saved
