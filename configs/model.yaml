@@ -18,6 +18,7 @@ models:
 
 imbalance:
   strategies: [class_weight, smote]
+  smote_min_gain: 0.005   # SMOTE is used for a model only if its CV PR-AUC beats class weights by more than this
 
 tuning:
   library: optuna
@@ -36,5 +37,5 @@ api:
   max_batch_size: 1000
 
 mlflow:
-  tracking_uri: mlruns
+  tracking_uri: sqlite:///mlruns/mlflow.db   # MLflow 3 no longer supports the plain file store
   experiment_name: churnguard

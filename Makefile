@@ -22,7 +22,7 @@ data:
 
 # Stubs below fail loudly until their block lands (see BUILD_PROMPTS.md).
 train:
-	"$(PY)" scripts/not_implemented.py train "Blocks 3-4"
+	"$(PY)" -m churnguard.models.train
 
 evaluate:
 	"$(PY)" scripts/not_implemented.py evaluate "Block 4"
@@ -40,7 +40,7 @@ app:
 	"$(PY)" scripts/not_implemented.py app "Block 7"
 
 mlflow:
-	"$(PY)" -m mlflow ui --backend-store-uri ./mlruns
+	"$(PY)" -m mlflow ui --backend-store-uri sqlite:///mlruns/mlflow.db --default-artifact-root ./mlruns/artifacts
 
 docker-up:
 	"$(PY)" scripts/not_implemented.py docker-up "Block 8"

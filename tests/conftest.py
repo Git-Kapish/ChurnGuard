@@ -30,6 +30,12 @@ BASE_CUSTOMER = {
 
 
 @pytest.fixture
+def payload() -> dict:
+    """A valid API request body (one customer, no target)."""
+    return {k: v for k, v in BASE_CUSTOMER.items() if k != "Churn"}
+
+
+@pytest.fixture
 def make_customers() -> Callable[..., pd.DataFrame]:
     """Factory: make_customers({...overrides}, {...}) -> cleaned-schema frame, one row each."""
 
