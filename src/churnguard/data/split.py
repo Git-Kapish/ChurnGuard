@@ -26,6 +26,11 @@ def split_data(
     return {"train": train_df, "val": val_df, "test": test_df}
 
 
+def split_xy(df: pd.DataFrame, target: str = "Churn") -> tuple[pd.DataFrame, pd.Series]:
+    """Return (features, target); customerID is dropped, the model never sees it."""
+    return df.drop(columns=[target, "customerID"], errors="ignore"), df[target]
+
+
 def save_splits(splits: dict[str, pd.DataFrame], out_dir: Path = PROCESSED_DIR) -> None:
     """Write each split to <out_dir>/<name>.parquet."""
     out_dir.mkdir(parents=True, exist_ok=True)
