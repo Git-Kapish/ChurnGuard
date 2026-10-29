@@ -35,7 +35,7 @@ lint:
 	"$(PY)" -m ruff check . && "$(PY)" -m black --check .
 
 api:
-	"$(PY)" scripts/not_implemented.py api "Block 6"
+	"$(PY)" -m uvicorn churnguard.api.main:app --port 8000
 
 app:
 	"$(PY)" scripts/not_implemented.py app "Block 7"

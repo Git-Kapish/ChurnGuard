@@ -131,10 +131,17 @@ class Health(BaseModel):
 
 
 class ModelInfo(BaseModel):
-    """Contents of models/metadata.json exposed by /model/info."""
+    """Selected contents of models/metadata.json exposed by /model/info."""
 
     model_version: str
+    model_name: str
+    calibration: str
     trained_at: str
-    threshold: float
-    metrics: dict[str, float]
+    threshold: float = Field(description="Target customers scoring at or above this")
+    risk_tiers: dict[str, float]
+    metrics: dict[str, float] = Field(description="Validation-split metrics")
+    test_metrics: dict[str, float] | None = Field(
+        None, description="Test-split metrics, scored once; absent until `make evaluate` has run"
+    )
     features: list[str]
+    note: str = Field(description="How to read the threshold and any money figures")
