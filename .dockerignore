@@ -1,0 +1,16 @@
+# Allowlist: only what the image needs goes into the build context.
+*
+!requirements.lock
+!pyproject.toml
+!README.md
+!src
+!app
+!configs
+!models
+!reports
+!.streamlit
+
+# ...minus local state
+**/__pycache__
+**/*.pyc
+reports/.test_scored

@@ -4,6 +4,11 @@
 # Experiment tracking and artifacts
 mlruns/
 models/*.joblib
+# The 2.5 MB model artifact is committed so Docker and the dashboard work from a clone.
+!models/churn_model_v1.joblib
+
+# Per-checkout guard: this working copy has already scored the test split (see evaluate.py)
+reports/.test_scored
 
 # Python
 .venv/

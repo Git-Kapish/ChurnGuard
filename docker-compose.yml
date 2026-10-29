@@ -1,0 +1,35 @@
+# API on :8000 and dashboard on :8501, from one image.
+#   make data          # once: the dashboard's Overview and simulator read data/processed
+#   docker compose up --build
+services:
+  api:
+    build: .
+    image: churnguard:local
+    command: ["uvicorn", "churnguard.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    restart: unless-stopped
+
+  app:
+    image: churnguard:local
+    command: ["streamlit", "run", "app/streamlit_app.py", "--server.port", "8501", "--server.address", "0.0.0.0"]
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./data:/app/data:ro   # processed splits from `make data`; not baked into the image
+    depends_on:
+      api:
+        condition: service_healthy   # also guarantees the image has been built
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8501/_stcore/health', timeout=4)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    restart: unless-stopped

@@ -1,11 +1,14 @@
 """Paths and YAML config loading shared across the package."""
 
+import os
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-ROOT = Path(__file__).resolve().parents[2]
+# CHURNGUARD_ROOT is set in Docker, where the package lives in site-packages and the repo
+# files (configs/, models/, reports/, data/) are mounted elsewhere.
+ROOT = Path(os.environ.get("CHURNGUARD_ROOT") or Path(__file__).resolve().parents[2])
 RAW_PATH = ROOT / "data" / "raw" / "telco_churn.csv"
 PROCESSED_DIR = ROOT / "data" / "processed"
 

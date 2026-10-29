@@ -44,6 +44,9 @@ PRD_TARGETS = {
 }
 
 
+SCORED_MARKER = ".test_scored"
+
+
 class AlreadyEvaluatedError(RuntimeError):
     """Raised when the test split has already been scored and --force was not given."""
 
@@ -183,13 +186,18 @@ def run(
 ) -> dict[str, Any]:
     """Evaluate the saved model on `split`, write reports/figures, update metadata.
 
-    The test split is guarded by reports/test_metrics.json: if it exists, a rerun needs force.
+    The test split is guarded by a per-checkout marker, reports/.test_scored (gitignored): if
+    it exists, a rerun needs force. The marker is separate from the results file so a fresh
+    clone, which receives the committed results but has not scored anything itself, can run
+    `make evaluate` once to reproduce them.
     """
     record_path = reports_dir / f"{split}_metrics.json"
-    if split == "test" and record_path.exists() and not force:
+    marker = reports_dir / SCORED_MARKER
+    already_scored = split == "test" and marker.exists()
+    if already_scored and not force:
         raise AlreadyEvaluatedError(
-            f"The test split was already scored ({record_path}). Re-running means looking at the "
-            "test set again; pass --force only if that is deliberate."
+            f"The test split was already scored in this checkout ({marker}). Re-running means "
+            "looking at the test set again; pass --force only if that is deliberate."
         )
     cfg = load_config("model")
     meta, bundle = load_metadata(metadata_path), load_bundle(model_path)
@@ -199,7 +207,7 @@ def run(
 
     result = evaluate_model(proba, y_arr, X, meta["threshold"], Business.from_config(), cfg["seed"])
     result["split"] = split
-    result["forced_rerun"] = bool(force and record_path.exists())
+    result["forced_rerun"] = bool(force and already_scored)
     result["model_version"] = meta["model_version"]
     result["git_hash"] = tracking.git_hash()
 
@@ -231,6 +239,10 @@ def run(
     ]
 
     if split == "test":
+        marker.write_text(
+            json.dumps({"scored_with_git": result["git_hash"], "forced": result["forced_rerun"]}),
+            encoding="utf-8",
+        )
         meta["test_metrics"] = {
             "metrics": result["metrics"],
             "bootstrap_95ci": result["bootstrap_95ci"],

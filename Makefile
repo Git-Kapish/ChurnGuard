@@ -14,13 +14,12 @@ help:
 
 setup:
 	uv venv --python 3.11 --allow-existing .venv || python -m venv .venv
-	uv pip install --python "$(PY)" -e ".[dev]" || "$(PY)" -m pip install -e ".[dev]"
+	uv pip install --python "$(PY)" -e ".[dev,train]" || "$(PY)" -m pip install -e ".[dev,train]"
 
 data:
 	"$(PY)" scripts/download_data.py
 	"$(PY)" -m churnguard.data.prepare
 
-# Stubs below fail loudly until their block lands (see BUILD_PROMPTS.md).
 train:
 	"$(PY)" -m churnguard.models.train
 
@@ -43,5 +42,6 @@ app:
 mlflow:
 	"$(PY)" -m mlflow ui --backend-store-uri sqlite:///mlruns/mlflow.db --default-artifact-root ./mlruns/artifacts
 
+# API on :8000, dashboard on :8501. The dashboard reads data/processed, so run `make data` first.
 docker-up:
-	"$(PY)" scripts/not_implemented.py docker-up "Block 8"
+	docker compose up --build

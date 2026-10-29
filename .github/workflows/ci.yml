@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            requirements.lock
+
+      - name: Install (runtime pinned, then dev and training extras)
+        # The lock keeps XGBoost, scikit-learn etc. at the versions the committed model was
+        # built and tested with, so unpickling it behaves the same here as locally.
+        run: |
+          pip install -r requirements.lock
+          pip install -e ".[dev,train]"
+
+      - name: Ruff
+        run: ruff check .
+
+      - name: Black
+        run: black --check .
+
+      - name: Download and prepare data
+        run: |
+          python scripts/download_data.py
+          python -m churnguard.data.prepare
+
+      - name: Tests with coverage (fails under 80%)
+        run: pytest --cov-fail-under=80

@@ -103,7 +103,7 @@ def test_second_test_evaluation_is_refused_before_touching_data(artifacts, monke
     root = artifacts["root"]
     reports = root / "guard"
     reports.mkdir()
-    (reports / "test_metrics.json").write_text("{}")
+    (reports / evaluate_module.SCORED_MARKER).write_text("{}")
     touched = []
     monkeypatch.setattr(evaluate_module, "load_split", lambda n: touched.append(n))
     with pytest.raises(evaluate_module.AlreadyEvaluatedError, match="--force"):
@@ -122,7 +122,7 @@ def test_forced_rerun_is_recorded_and_updates_metadata(artifacts, monkeypatch) -
     root = artifacts["root"]
     reports, meta_copy = root / "forced", root / "models" / "metadata_copy.json"
     reports.mkdir()
-    (reports / "test_metrics.json").write_text("{}")
+    (reports / evaluate_module.SCORED_MARKER).write_text("{}")
     shutil.copy(root / "models" / "metadata.json", meta_copy)
     monkeypatch.setattr(evaluate_module, "load_split", lambda n: load_split("val"))  # stand-in data
     result = evaluate_module.run(
@@ -136,6 +136,29 @@ def test_forced_rerun_is_recorded_and_updates_metadata(artifacts, monkeypatch) -
     assert result["forced_rerun"] is True
     assert "test_metrics" in json.loads(meta_copy.read_text())
     assert json.loads((reports / "test_metrics.json").read_text())["forced_rerun"] is True
+
+
+@needs_artifacts
+def test_fresh_checkout_with_committed_results_may_score_once(artifacts, monkeypatch) -> None:
+    """A clone receives test_metrics.json but no marker: it can reproduce once, then is guarded."""
+    root = artifacts["root"]
+    reports, meta_copy = root / "fresh", root / "models" / "metadata_fresh.json"
+    reports.mkdir()
+    (reports / "test_metrics.json").write_text("{}")  # committed results, but no marker
+    shutil.copy(root / "models" / "metadata.json", meta_copy)
+    monkeypatch.setattr(evaluate_module, "load_split", lambda n: load_split("val"))  # stand-in
+    kwargs = {
+        "split": "test",
+        "reports_dir": reports,
+        "model_path": root / "models" / "m.joblib",
+        "metadata_path": meta_copy,
+        "log_to_mlflow": False,
+    }
+    first = evaluate_module.run(**kwargs)
+    assert first["forced_rerun"] is False
+    assert (reports / evaluate_module.SCORED_MARKER).exists()
+    with pytest.raises(evaluate_module.AlreadyEvaluatedError):
+        evaluate_module.run(**kwargs)
 
 
 def test_evaluate_model_pure_function_on_synthetic_data(random_customers) -> None:
