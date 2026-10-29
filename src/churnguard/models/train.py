@@ -15,6 +15,7 @@ from sklearn.model_selection import train_test_split
 
 from churnguard.config import ROOT, load_config
 from churnguard.data.split import load_split, split_xy
+from churnguard.explain.report import run as run_explain
 from churnguard.models import tracking
 from churnguard.models.cv import cross_validate, make_folds, summarize
 from churnguard.models.finalize import run_final
@@ -190,6 +191,7 @@ def main() -> None:
     if not args.skip_search:
         run_pipeline(sample=args.sample, n_trials=args.trials)
     run_final(sample=args.sample)
+    run_explain()  # SHAP figures and the SHAP-vs-permutation note for the model just saved
 
 
 if __name__ == "__main__":

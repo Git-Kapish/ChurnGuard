@@ -103,6 +103,8 @@ class Reason(BaseModel):
 
     text: str
     direction: str = Field(pattern="^(increases|decreases)_risk$")
+    feature: str | None = Field(None, description="Customer attribute the reason is about")
+    impact: float | None = Field(None, description="SHAP contribution in log-odds of churn")
 
 
 class Prediction(BaseModel):

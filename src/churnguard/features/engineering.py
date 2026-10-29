@@ -3,6 +3,7 @@
 Stateless on purpose: nothing is learned from data, so it cannot leak across splits.
 """
 
+import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
 
@@ -46,8 +47,10 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         if missing:
             raise ValueError(f"missing columns: {missing}")
         out = X.copy()
-        out["tenure_bucket"] = pd.cut(out["tenure"], TENURE_BINS, labels=TENURE_LABELS).astype(str)
-        out["n_services"] = (out[SERVICE_COLS] == "Yes").sum(axis=1)
+        # Plain numpy ops: this runs once per model in the calibrated ensemble on every request.
+        bucket = np.searchsorted(TENURE_BINS[1:-1], out["tenure"].to_numpy(), side="left")
+        out["tenure_bucket"] = np.array(TENURE_LABELS)[bucket]
+        out["n_services"] = (out[SERVICE_COLS].to_numpy() == "Yes").sum(axis=1)
         out["avg_monthly_spend"] = out["TotalCharges"] / out["tenure"].clip(lower=1)
         out["charge_delta"] = out["MonthlyCharges"] - out["avg_monthly_spend"]
         out["is_month_to_month"] = (out["Contract"] == "Month-to-month").astype(int)
