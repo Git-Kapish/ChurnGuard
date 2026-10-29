@@ -17,6 +17,7 @@ from churnguard.config import ROOT, load_config
 from churnguard.data.split import load_split, split_xy
 from churnguard.models import tracking
 from churnguard.models.cv import cross_validate, make_folds, summarize
+from churnguard.models.finalize import run_final
 from churnguard.models.registry import build_estimator
 from churnguard.models.tune import tune
 
@@ -180,8 +181,15 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sample", type=int, help="use a stratified sample of N train rows")
     parser.add_argument("--trials", type=int, help="override Optuna trials per model")
+    parser.add_argument(
+        "--skip-search",
+        action="store_true",
+        help="reuse reports/tuning_results.json; only select, calibrate and save",
+    )
     args = parser.parse_args()
-    run_pipeline(sample=args.sample, n_trials=args.trials)
+    if not args.skip_search:
+        run_pipeline(sample=args.sample, n_trials=args.trials)
+    run_final(sample=args.sample)
 
 
 if __name__ == "__main__":

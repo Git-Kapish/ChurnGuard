@@ -34,6 +34,17 @@ def git_hash() -> str:
         return "unknown"
 
 
+def git_dirty() -> bool:
+    """True if the working tree has uncommitted changes (the recorded hash may not match code)."""
+    try:
+        out = subprocess.run(
+            ["git", "status", "--porcelain"], cwd=ROOT, capture_output=True, text=True, check=True
+        )
+        return bool(out.stdout.strip())
+    except (OSError, subprocess.CalledProcessError):
+        return False
+
+
 def setup(tracking_uri: str, experiment: str) -> None:
     """Point MLflow at a local SQLite store with artifacts next to it.
 

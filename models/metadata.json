@@ -1,0 +1,284 @@
+{
+  "model_version": "v1",
+  "trained_at": "2026-10-29T16:45:58+00:00",
+  "model_name": "xgboost",
+  "imbalance": "class_weight",
+  "params": {
+    "n_estimators": 493,
+    "max_depth": 2,
+    "learning_rate": 0.042132515671934254,
+    "subsample": 0.5011539821063576,
+    "colsample_bytree": 0.5375566124836215,
+    "min_child_weight": 7,
+    "reg_lambda": 2.263418326583197,
+    "gamma": 2.8409719053591482
+  },
+  "calibration": "sigmoid",
+  "threshold": 0.14025259257980535,
+  "threshold_rule": "maximize label-based expected net value on the validation split",
+  "breakeven_probability": 0.13333333333333333,
+  "risk_tiers": {
+    "medium": 0.25,
+    "high": 0.5
+  },
+  "business_assumptions": {
+    "note": "Assumptions, not measured facts; every profit figure is a simulation.",
+    "retention_offer_cost": 20,
+    "offer_success_rate": 0.3,
+    "customer_lifetime_value": 500,
+    "campaign_budget": 3000
+  },
+  "features": [
+    "gender",
+    "SeniorCitizen",
+    "Partner",
+    "Dependents",
+    "tenure",
+    "PhoneService",
+    "MultipleLines",
+    "InternetService",
+    "OnlineSecurity",
+    "OnlineBackup",
+    "DeviceProtection",
+    "TechSupport",
+    "StreamingTV",
+    "StreamingMovies",
+    "Contract",
+    "PaperlessBilling",
+    "PaymentMethod",
+    "MonthlyCharges",
+    "TotalCharges"
+  ],
+  "model_input_features": [
+    "tenure",
+    "MonthlyCharges",
+    "TotalCharges",
+    "avg_monthly_spend",
+    "charge_delta",
+    "n_services",
+    "SeniorCitizen",
+    "is_month_to_month",
+    "has_support_bundle",
+    "auto_pay",
+    "gender_Male",
+    "Partner_Yes",
+    "Dependents_Yes",
+    "PhoneService_Yes",
+    "MultipleLines_Yes",
+    "InternetService_DSL",
+    "InternetService_Fiber optic",
+    "InternetService_No",
+    "OnlineSecurity_Yes",
+    "OnlineBackup_Yes",
+    "DeviceProtection_Yes",
+    "TechSupport_Yes",
+    "StreamingTV_Yes",
+    "StreamingMovies_Yes",
+    "Contract_Month-to-month",
+    "Contract_One year",
+    "Contract_Two year",
+    "PaperlessBilling_Yes",
+    "PaymentMethod_Bank transfer (automatic)",
+    "PaymentMethod_Credit card (automatic)",
+    "PaymentMethod_Electronic check",
+    "PaymentMethod_Mailed check",
+    "tenure_bucket_0-12",
+    "tenure_bucket_13-24",
+    "tenure_bucket_25-48",
+    "tenure_bucket_49+"
+  ],
+  "metrics": {
+    "roc_auc": 0.849703148011782,
+    "pr_auc": 0.6538197441785517,
+    "f1": 0.5970149253731343,
+    "recall": 0.5714285714285714,
+    "brier": 0.13404057294707591,
+    "top_decile_lift": 2.775202156334232,
+    "recall_at_threshold": 0.9214285714285714,
+    "precision_at_threshold": 0.45989304812834225,
+    "split": "validation"
+  },
+  "validation": {
+    "candidates": {
+      "logistic_regression": {
+        "roc_auc": 0.8468865058910162,
+        "pr_auc": 0.6355024341598843,
+        "f1": 0.6285714285714286,
+        "recall": 0.825,
+        "brier": 0.1687220468741168,
+        "top_decile_lift": 2.846361185983828
+      },
+      "xgboost": {
+        "roc_auc": 0.8507133652430044,
+        "pr_auc": 0.6556722351033563,
+        "f1": 0.6384720327421555,
+        "recall": 0.8357142857142857,
+        "brier": 0.16388092935085297,
+        "top_decile_lift": 2.775202156334232
+      }
+    },
+    "calibration": {
+      "uncalibrated": {
+        "roc_auc": 0.8507133652430044,
+        "pr_auc": 0.6556722351033563,
+        "f1": 0.6384720327421555,
+        "recall": 0.8357142857142857,
+        "brier": 0.16388092935085297,
+        "top_decile_lift": 2.775202156334232
+      },
+      "isotonic": {
+        "roc_auc": 0.8478990243004418,
+        "pr_auc": 0.6468107600751684,
+        "f1": 0.5730994152046783,
+        "recall": 0.525,
+        "brier": 0.13506288615562,
+        "top_decile_lift": 2.704043126684636
+      },
+      "sigmoid": {
+        "roc_auc": 0.849703148011782,
+        "pr_auc": 0.6538197441785517,
+        "f1": 0.5970149253731343,
+        "recall": 0.5714285714285714,
+        "brier": 0.13404057294707591,
+        "top_decile_lift": 2.775202156334232
+      }
+    },
+    "threshold_decision": {
+      "threshold": 0.14025259257980535,
+      "n_targeted": 561,
+      "total_value": 27480.0
+    },
+    "expected_value_threshold": {
+      "threshold": 0.1345465791073267,
+      "n_targeted": 566,
+      "total_value": 27900.7459596161
+    },
+    "budget_top_k": {
+      "threshold": 0.6181099913014803,
+      "n_targeted": 149,
+      "total_value": 13520.0
+    },
+    "strategies": {
+      "target_nobody": {
+        "n_targeted": 0,
+        "net_value": 0.0,
+        "model_expected_value": 0.0,
+        "churners_reached": 0,
+        "share_of_churners_reached": 0.0
+      },
+      "target_everyone": {
+        "n_targeted": 1056,
+        "net_value": 20880.0,
+        "model_expected_value": 22278.962223854956,
+        "churners_reached": 280,
+        "share_of_churners_reached": 1.0
+      },
+      "threshold_0.5": {
+        "n_targeted": 256,
+        "net_value": 18880.0,
+        "model_expected_value": 19325.038382746516,
+        "churners_reached": 160,
+        "share_of_churners_reached": 0.5714285714285714
+      },
+      "chosen_threshold": {
+        "n_targeted": 561,
+        "net_value": 27480.0,
+        "model_expected_value": 27898.728366888092,
+        "churners_reached": 258,
+        "share_of_churners_reached": 0.9214285714285714
+      },
+      "best_top_k_within_budget": {
+        "n_targeted": 149,
+        "net_value": 13520.0,
+        "model_expected_value": 12570.723726044234,
+        "churners_reached": 110,
+        "share_of_churners_reached": 0.39285714285714285
+      }
+    }
+  },
+  "train_rows": 4930,
+  "git_hash": "43fc740",
+  "git_dirty": true,
+  "data_sha256": "16320c9c1ec72448db59aa0a26a0b95401046bef5d02fd3aeb906448e3055e91",
+  "library_versions": {
+    "python": "3.11.15",
+    "scikit-learn": "1.8.0",
+    "xgboost": "3.2.0",
+    "lightgbm": "4.7.0",
+    "imbalanced-learn": "0.14.2",
+    "pandas": "2.3.3",
+    "numpy": "2.4.6",
+    "joblib": "1.6.0"
+  },
+  "test_metrics": {
+    "metrics": {
+      "roc_auc": 0.8422354807939245,
+      "pr_auc": 0.6727161675484967,
+      "brier": 0.1378389653298059,
+      "log_loss": 0.4259146674143368,
+      "top_decile_lift": 3.0518364332236625,
+      "threshold": 0.14025259257980535,
+      "precision": 0.4540337711069418,
+      "recall": 0.8612099644128114,
+      "f1": 0.5945945945945946,
+      "tp": 242,
+      "fp": 291,
+      "fn": 39,
+      "tn": 485
+    },
+    "bootstrap_95ci": {
+      "roc_auc": [
+        0.8160860005382177,
+        0.8691598731482287
+      ],
+      "pr_auc": [
+        0.6126036594923584,
+        0.7307347797937114
+      ],
+      "brier": [
+        0.12469716899584056,
+        0.15077972777349924
+      ],
+      "recall": [
+        0.8201349874164273,
+        0.9014186939820743
+      ],
+      "top_decile_lift": [
+        2.6901363674215184,
+        3.390377358490566
+      ]
+    },
+    "prd_targets": {
+      "roc_auc": {
+        "value": 0.8422354807939245,
+        "target": ">= 0.84",
+        "met": true
+      },
+      "pr_auc": {
+        "value": 0.6727161675484967,
+        "target": ">= 0.64",
+        "met": true
+      },
+      "recall": {
+        "value": 0.8612099644128114,
+        "target": ">= 0.7",
+        "met": true
+      },
+      "top_decile_lift": {
+        "value": 3.0518364332236625,
+        "target": ">= 2.8",
+        "met": true
+      },
+      "brier": {
+        "value": 0.1378389653298059,
+        "target": "<= 0.15",
+        "met": true
+      },
+      "net_value_vs_target_everyone": {
+        "value": 4630.0,
+        "target": "> 0",
+        "met": true
+      }
+    }
+  }
+}

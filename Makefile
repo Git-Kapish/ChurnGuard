@@ -24,8 +24,9 @@ data:
 train:
 	"$(PY)" -m churnguard.models.train
 
+# Scores the test split ONCE. To rerun deliberately: make evaluate ARGS=--force
 evaluate:
-	"$(PY)" scripts/not_implemented.py evaluate "Block 4"
+	"$(PY)" -m churnguard.evaluation.evaluate $(ARGS)
 
 test:
 	"$(PY)" -m pytest

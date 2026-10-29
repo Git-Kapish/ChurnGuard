@@ -4,3 +4,4 @@
 retention_offer_cost: 20       # cost of contacting/discounting one customer
 offer_success_rate: 0.30       # fraction of true churners saved by an offer
 customer_lifetime_value: 500   # value kept when a churner is saved
+campaign_budget: 3000          # total spend available; caps the target list at budget / offer cost customers
