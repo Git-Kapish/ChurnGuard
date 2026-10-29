@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from typing import Annotated, Any
 
 from fastapi import FastAPI, File, HTTPException, Request, Response, UploadFile
+from fastapi.responses import JSONResponse
 
 from churnguard.api.csv_input import MAX_CSV_BYTES, CsvInputError, parse_customers_csv
 from churnguard.api.schemas import (
@@ -24,6 +25,9 @@ from churnguard.api.schemas import (
 from churnguard.predict import Predictor, get_predictor
 
 log = logging.getLogger("churnguard.api")
+# Rejected before any parsing. Covers a 2 MB CSV upload plus multipart overhead, and a full
+# 1,000-customer JSON batch (about 0.5 MB).
+MAX_BODY_BYTES = MAX_CSV_BYTES + 100_000
 DESCRIPTION = (
     "Scores telecom customers for churn risk. `will_target` is true when the probability is at "
     "or above a threshold chosen to maximize an **assumption-driven** simulated net value "
@@ -47,9 +51,17 @@ def create_app(predictor_factory: Callable[[], Predictor] = get_predictor) -> Fa
     app = FastAPI(title="ChurnGuard API", description=DESCRIPTION, version="1.0", lifespan=lifespan)
 
     @app.middleware("http")
-    async def log_latency(request: Request, call_next):  # noqa: ANN001, ANN202
+    async def limit_size_and_log_latency(request: Request, call_next):
         start = time.perf_counter()
-        response = await call_next(request)
+        size = request.headers.get("content-length", "")
+        # shortcut: chunked uploads (no Content-Length) are not capped here; add a streaming
+        # byte counter if the API is ever exposed beyond trusted callers.
+        if size.isdigit() and int(size) > MAX_BODY_BYTES:
+            response = JSONResponse(
+                {"detail": f"request body larger than {MAX_BODY_BYTES} bytes"}, status_code=413
+            )
+        else:
+            response = await call_next(request)
         ms = (time.perf_counter() - start) * 1000
         response.headers["X-Process-Time-ms"] = f"{ms:.1f}"
         log.info(

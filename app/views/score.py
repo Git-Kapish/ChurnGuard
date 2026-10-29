@@ -78,7 +78,7 @@ PRESETS = {
 }
 
 
-def _values(enum) -> list[str]:  # noqa: ANN001
+def _values(enum) -> list[str]:
     return [m.value for m in enum]
 
 
@@ -121,7 +121,7 @@ def gauge(probability: float, threshold: float, tiers: dict[str, float]) -> go.F
     return fig
 
 
-def waterfall(baseline: float, table, top: int = 8) -> go.Figure:  # noqa: ANN001
+def waterfall(baseline: float, table, top: int = 8) -> go.Figure:
     """Waterfall from the average customer to this customer, in base-model log-odds."""
     head, tail = table.head(top), table.iloc[top:]
     labels = [
@@ -161,7 +161,7 @@ def _form(preset_name: str) -> dict | None:
     p = PRESETS[preset_name]
     key = lambda f: f"{preset_name}|{f}"  # noqa: E731  (new preset -> fresh widgets)
 
-    def pick(label: str, field: str, options: list[str], container) -> str:  # noqa: ANN001
+    def pick(label: str, field: str, options: list[str], container) -> str:
         return container.selectbox(label, options, index=options.index(p[field]), key=key(field))
 
     with st.form("customer"):

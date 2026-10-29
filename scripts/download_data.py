@@ -17,6 +17,8 @@ URL = (
 RAW_PATH = Path(__file__).resolve().parents[1] / "data" / "raw" / "telco_churn.csv"
 CHECKSUM_PATH = RAW_PATH.with_name(RAW_PATH.name + ".sha256")
 EXPECTED_ROWS, EXPECTED_COLS = 7043, 21
+# The file every published number in this repo was built from.
+KNOWN_SHA256 = "16320c9c1ec72448db59aa0a26a0b95401046bef5d02fd3aeb906448e3055e91"
 TIMEOUT_S = 30
 
 log = logging.getLogger("download_data")
@@ -83,6 +85,14 @@ def main() -> int:
             return 1
 
     checksum = sha256_of(RAW_PATH)
+    if checksum != KNOWN_SHA256:  # e.g. upstream changed, or a re-saved Kaggle copy
+        log.warning(
+            "WARNING: %s differs from the dataset the published results were built on "
+            "(sha256 %s, expected %s). Retrained metrics may not match README/MODEL_CARD.",
+            RAW_PATH.name,
+            checksum,
+            KNOWN_SHA256,
+        )
     if CHECKSUM_PATH.exists():
         recorded = CHECKSUM_PATH.read_text().split()[0]
         if recorded != checksum:

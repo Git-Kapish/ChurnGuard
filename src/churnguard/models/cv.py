@@ -16,9 +16,7 @@ def make_folds(y: pd.Series, n_splits: int = 5, seed: int = 42) -> Folds:
     return list(skf.split(np.zeros(len(y)), y))
 
 
-def cross_validate(
-    estimator, X: pd.DataFrame, y: pd.Series, folds: Folds
-) -> pd.DataFrame:  # noqa: ANN001
+def cross_validate(estimator, X: pd.DataFrame, y: pd.Series, folds: Folds) -> pd.DataFrame:
     """Fit a fresh clone per fold on the training part; score the held-out part.
 
     Returns one row per fold with the METRIC_NAMES columns.

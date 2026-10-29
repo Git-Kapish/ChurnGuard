@@ -133,6 +133,7 @@ def test_simulator_shows_outcomes_for_the_validation_pool() -> None:
     labels = [m.label for m in at.metric]
     assert "Net value using actual outcomes" in labels
     assert at.dataframe  # strategy table and target list
+    assert any("Validation customers were used" in c.value for c in at.caption)
 
 
 def test_simulator_upload_mode_waits_for_a_file() -> None:

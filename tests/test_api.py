@@ -161,6 +161,17 @@ def test_batch_limit_is_enforced(client, customers) -> None:
     assert client.post("/predict/batch", json={"customers": []}).status_code == 422
 
 
+def test_oversized_json_body_is_rejected_before_parsing(client, customers) -> None:
+    padding = "x" * (api_main.MAX_BODY_BYTES + 10)  # one huge field, far past any real batch
+    body_text = '{"customers": [], "padding": "' + padding + '"}'
+    r = client.post(
+        "/predict/batch", content=body_text, headers={"Content-Type": "application/json"}
+    )
+    assert r.status_code == 413 and "larger than" in r.json()["detail"]
+    full_batch = {"customers": [body(customers)] * MAX_BATCH}  # the biggest legal request
+    assert client.post("/predict/batch?explain=false", json=full_batch).status_code == 200
+
+
 def test_batch_with_one_bad_customer_is_rejected_whole(client, customers) -> None:
     items = [body(customers, 0), {**body(customers, 1), "PaymentMethod": "Cash"}]
     assert client.post("/predict/batch", json={"customers": items}).status_code == 422

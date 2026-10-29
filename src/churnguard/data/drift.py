@@ -9,26 +9,12 @@ import numpy as np
 import pandas as pd
 
 from churnguard.data.clean import normalize_customers
+from churnguard.features.pipeline import CATEGORICAL
 
 NUMERIC_FEATURES = ["tenure", "MonthlyCharges", "TotalCharges"]
-CATEGORICAL_FEATURES = [
-    "gender",
-    "SeniorCitizen",
-    "Partner",
-    "Dependents",
-    "PhoneService",
-    "MultipleLines",
-    "InternetService",
-    "OnlineSecurity",
-    "OnlineBackup",
-    "DeviceProtection",
-    "TechSupport",
-    "StreamingTV",
-    "StreamingMovies",
-    "Contract",
-    "PaperlessBilling",
-    "PaymentMethod",
-]
+# The model's raw categorical inputs (tenure_bucket is derived from tenure, which is checked
+# as a number), so a feature added to the model is drift-checked automatically.
+CATEGORICAL_FEATURES = ["SeniorCitizen", *(c for c in CATEGORICAL if c != "tenure_bucket")]
 THRESHOLD = 0.2
 N_BINS = 10
 EPS = 1e-4  # share assigned to an empty bin so ln() stays finite
