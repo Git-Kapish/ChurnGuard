@@ -1,195 +1,356 @@
 # ChurnGuard
 
-End-to-end telecom churn prediction: a leakage-safe data pipeline, tracked experiments, a calibrated
-model, a cost-based targeting threshold, SHAP reasons in plain English, a FastAPI service and a
-Streamlit dashboard, packaged with Docker.
+**An end-to-end, explainable telecom customer churn prediction and retention decision-support system.**
 
-It answers one practical question: **given a retention budget, which customers should we contact, and
-why?** See [PRD.md](PRD.md) for scope, [CLAUDE.md](CLAUDE.md) for the build rules and
-[reports/MODEL_CARD.md](reports/MODEL_CARD.md) for the full, honest account of what the model can and
-cannot do.
+ChurnGuard helps telecom teams identify customers at risk of leaving, understand the factors contributing to each prediction, and prioritize retention outreach under a configurable budget.
 
-> **Money figures are an assumption-driven simulation.** Offer cost, success rate and customer lifetime
-> value are assumptions in `configs/business.yaml`, not measured facts. The churn model itself is
-> evaluated on real held-out data; the dollar values built on top of it are illustrations of the method.
+The project brings together a reproducible machine-learning workflow, model evaluation, explainability, a cost-sensitive campaign simulator, a FastAPI inference service, and a Streamlit dashboard. The API and dashboard share a single inference implementation, and the application can be run locally or with Docker Compose.
 
-## Results
+> **Important — simulated business economics:** Offer cost, retention success rate, and customer lifetime value are configurable assumptions in `configs/business.yaml`. They are not measured business outcomes. Model-quality metrics are computed on held-out data; financial results are illustrative simulations based on those assumptions.
 
-Held-out **test split** (1,057 customers, scored once after every choice was fixed), 95% bootstrap
-confidence intervals:
+## Table of contents
 
-| Metric | Result | 95% CI | Target | Status |
-|---|---|---|---|---|
-| PR-AUC (primary) | **0.673** | [0.613, 0.731] | >= 0.64 | met |
-| ROC-AUC | **0.842** | [0.816, 0.869] | >= 0.84 | met on the point estimate, borderline |
-| Recall at chosen threshold | 0.861 | [0.820, 0.901] | >= 0.70 | met |
-| Top-decile lift | 3.05 | [2.69, 3.39] | >= 2.8 | met |
-| Brier score | 0.138 | [0.125, 0.151] | <= 0.15 | met |
-| Net value vs "contact everyone" | +4,630 (+22%) | | strictly higher | met (simulation) |
-| Single-prediction latency, p95 | 132 ms in Docker (median 99 ms) | < 100 ms | **narrowly missed** |
+- [Highlights](#highlights)
+- [Evaluation results](#evaluation-results)
+- [How it works](#how-it-works)
+- [Architecture](#architecture)
+- [Screenshots](#screenshots)
+- [Getting started](#getting-started)
+- [Run with Docker](#run-with-docker)
+- [API reference](#api-reference)
+- [Dashboard](#dashboard)
+- [Data drift check](#data-drift-check)
+- [Project structure](#project-structure)
+- [Engineering practices](#engineering-practices)
+- [Documentation](#documentation)
 
-Every accuracy target is met on its point estimate, but the intervals are wide: the ROC-AUC lower bound
-(0.816) is under its target. Precision at the chosen threshold is only 0.45, because the threshold is
-deliberately low (see below). Latency was measured server-side over 45 requests in the Linux container
-(16 CPUs); on a native Windows laptop run it was far slower (median 334 ms, p95 962 ms). The cause and the
-options are in the [model card](reports/MODEL_CARD.md#9-limitations).
+## Highlights
 
-**Model choice (5-fold CV on the training split, PR-AUC):** dummy 0.265, logistic regression 0.662,
-random forest 0.657, XGBoost 0.657, LightGBM 0.651. The four real models are statistically
-indistinguishable; XGBoost won on the validation split (0.656 vs 0.636) after tuning with Optuna.
-SMOTE never beat class weights. Details: [reports/model_comparison.md](reports/model_comparison.md).
+- **End-to-end ML workflow:** data validation, cleaning, stratified splitting, feature engineering, model comparison, hyperparameter tuning, calibration, and evaluation.
+- **Leakage-aware training:** preprocessing is encapsulated in scikit-learn pipelines and fitted within training folds.
+- **Model comparison and experiment tracking:** evaluate baseline and candidate classifiers with cross-validation, tune with Optuna, and track experiments in MLflow.
+- **Actionable churn scores:** return a churn probability, risk tier, targeting decision, and customer-level explanations.
+- **Explainable predictions:** use SHAP to produce feature contributions and plain-English reasons.
+- **Budget-aware retention planning:** compare targeting strategies and rank customers using configurable business assumptions.
+- **Multiple inference interfaces:** FastAPI endpoints for application integration and a Streamlit dashboard for interactive analysis.
+- **Operational packaging:** Docker Compose, pinned runtime dependencies, automated tests, linting, and CI.
 
-**Targeting under the assumed economics** (test split, actual outcomes):
+## Evaluation results
 
-| Strategy | Contacted | Net value | Churners reached |
-|---|---|---|---|
+The following results are from the **held-out test split of 1,057 customers**. The test set was scored once after model and threshold choices had been finalized. Confidence intervals are 95% bootstrap intervals.
+
+| Metric | Test result | 95% confidence interval | Project target |
+|---|---:|---:|---:|
+| PR-AUC (primary metric) | **0.673** | 0.613–0.731 | ≥ 0.64 |
+| ROC-AUC | **0.842** | 0.816–0.869 | ≥ 0.84 |
+| Recall at selected threshold | **0.861** | 0.820–0.901 | ≥ 0.70 |
+| Top-decile lift | **3.05** | 2.69–3.39 | ≥ 2.8 |
+| Brier score | **0.138** | 0.125–0.151 | ≤ 0.15 |
+
+The point estimates meet the stated accuracy targets. The confidence interval for ROC-AUC extends below its target, so that result should be interpreted with appropriate caution. At the selected low threshold, precision is 0.45; the operating point prioritizes recall so that more potential churners are identified.
+
+### Model selection
+
+Five-fold cross-validation on the training split produced the following PR-AUC scores:
+
+| Model | Cross-validation PR-AUC |
+|---|---:|
+| Dummy baseline | 0.265 |
+| Logistic regression | 0.662 |
+| Random forest | 0.657 |
+| XGBoost | 0.657 |
+| LightGBM | 0.651 |
+
+The four non-baseline models performed similarly in cross-validation. XGBoost was selected after achieving the strongest validation result during tuning (0.656 versus 0.636 for the next candidate). SMOTE did not outperform class weighting.
+
+See [model comparison](reports/model_comparison.md) for details.
+
+### Retention strategy simulation
+
+The selected cost-sensitive threshold is **0.140**. On the test split, under the configurable business assumptions, the strategies compare as follows:
+
+| Strategy | Customers contacted | Simulated net value | Churners reached |
+|---|---:|---:|---:|
 | Contact nobody | 0 | 0 | 0% |
 | Contact everyone | 1,057 | 21,010 | 100% |
-| Default 0.5 threshold | 229 | 17,620 | 53% |
-| **Cost-optimal threshold (0.140)** | 533 | **25,640** | 86% |
+| Default threshold (0.5) | 229 | 17,620 | 53% |
+| **Cost-optimal threshold (0.140)** | **533** | **25,640** | **86%** |
 | Best list within a 3,000 budget | 148 | 13,240 | 38% |
 
-Contacting everyone is already profitable under these assumptions (26.6% churn is well above the 13.3%
-break-even), so the model's value is in skipping the low-risk half, and the budget is a binding limit.
+These are simulated values, not realized revenue or measured campaign results. Under the current assumptions, contacting everyone is already profitable; the model's value is in prioritizing customers and avoiding outreach to lower-risk customers when resources are constrained.
+
+For methodology, assumptions, confidence intervals, and limitations, see the [model card](reports/MODEL_CARD.md).
+
+## How it works
+
+1. **Prepare the data.** Retrieve the Telco Customer Churn dataset, validate its schema, clean it, and create stratified train, validation, and test splits.
+2. **Build and compare models.** Apply preprocessing and feature engineering through a scikit-learn pipeline, compare candidate classifiers with cross-validation, and tune the selected model.
+3. **Calibrate and select a decision threshold.** Use validation data to calibrate probabilities and choose a threshold based on the configured retention economics.
+4. **Explain predictions.** Generate SHAP explanations and translate important feature contributions into readable customer-level reasons.
+5. **Serve predictions.** Load the versioned model through one inference entry point used by both FastAPI and Streamlit.
+6. **Evaluate once.** Run the finalized model on the held-out test split and generate metrics and reports.
 
 ## Architecture
 
 ```mermaid
-flowchart LR
-    raw[(Telco CSV)] --> data["Data pipeline<br/>validate, clean, stratified split"]
-    data --> splits[("train / val / test<br/>parquet")]
-    splits --> train["Feature pipeline + models<br/>CV, Optuna, calibration,<br/>cost threshold"]
-    train --> mlflow[(MLflow)]
-    train --> model[("model .joblib<br/>+ metadata.json")]
-    model --> predict["predict.py<br/>probability, tier, reasons"]
-    predict --> api["FastAPI :8000"]
-    predict --> dash["Streamlit :8501"]
-    splits -. "test split read once" .-> eval["evaluate.py"]
-    model --> eval
+flowchart TD
+    A[Telco Customer Churn CSV] --> B[Validation and cleaning]
+    B --> C[Stratified train / validation / test splits]
+    C --> D[Feature engineering and preprocessing]
+    D --> E[Cross-validation and model selection]
+    E --> F[Optuna hyperparameter tuning]
+    F --> G[Calibration and cost-based threshold]
+    G --> H[Trained model and metadata]
+    H --> I[Shared prediction module]
+    I --> J[FastAPI service]
+    I --> K[Streamlit dashboard]
+    C -. Test split read only by evaluation .-> L[Evaluation reports]
+    H --> L
+    E --> M[MLflow experiment tracking]
+    F --> M
 ```
 
-Design rules that shape the code (from [CLAUDE.md](CLAUDE.md)):
+## Screenshots
 
-- **No leakage.** Every transformer lives inside one scikit-learn pipeline and is fit on training folds
-  only; a test checks a customer's features do not change when other customers change.
-- **The test split is read once**, by `evaluate.py`, which refuses to run twice in a checkout without
-  `--force`. Selection, calibration and the threshold all use the validation split.
-- **One inference path.** The API and the dashboard both call `src/churnguard/predict.py`.
-- **Config over constants.** Model settings in `configs/model.yaml`, business assumptions in
-  `configs/business.yaml`, seeds fixed at 42.
+| Overview | Model evaluation |
+|---|---|
+| ![Overview dashboard](docs/screenshots/overview.png) | ![Model evaluation dashboard](docs/screenshots/model.png) |
 
-## Quickstart
+| Customer scoring | Campaign simulator |
+|---|---|
+| ![Customer scoring page](docs/screenshots/score-a-customer.png) | ![Campaign simulator page](docs/screenshots/campaign-simulator.png) |
 
-Needs Python 3.11 (or [uv](https://docs.astral.sh/uv/), which installs it) and GNU `make`
-(on Windows without it: `mingw32-make`, or `choco install make`).
+## Getting started
+
+### Prerequisites
+
+- Python **3.11**
+- GNU Make
+  - On Windows, use `mingw32-make` or install Make with `choco install make`.
+- Git
+
+Alternatively, use [uv](https://docs.astral.sh/uv/) to manage Python and the project environment.
+
+### 1. Clone the repository
 
 ```bash
-make setup      # virtualenv + dependencies
-make data       # download the IBM Telco CSV, validate, clean, split (writes data/processed)
-make train      # CV comparison, Optuna, calibration, threshold, SHAP figures (about 3 minutes)
-make evaluate   # score the test split ONCE and write reports/ and the figures
-make test       # pytest with coverage (the suite needs >= 80%)
-make lint       # ruff and black --check
-make api        # FastAPI on http://localhost:8000 (docs at /docs)
-make app        # Streamlit on http://localhost:8501
-make mlflow     # MLflow UI for the tracked experiments
+git clone https://github.com/Git-Kapish/ChurnGuard.git
+cd ChurnGuard
 ```
 
-A fresh clone already contains the trained model (`models/churn_model_v1.joblib`) and the committed
-reports, so after `make setup data` the `make api` and `make app` targets work immediately. `make train`
-retrains it; with fixed seeds it reproduces the same metrics.
-
-If the download fails, put the Kaggle copy (`WA_Fn-UseC_-Telco-Customer-Churn.csv`) at
-`data/raw/telco_churn.csv` and re-run `make data` to record its checksum.
-
-**Verified from a clean copy** (no data, virtualenv, MLflow store or git history):
-`make setup data train evaluate test lint` succeeded in about 12 minutes (training 3 min 9 s), with 179
-tests passing at 92% coverage. The retrained model reproduced the committed test metrics **exactly**
-(identical PR-AUC, ROC-AUC, confidence intervals, hyperparameters and threshold).
-
-### Docker
+### 2. Install dependencies
 
 ```bash
-make data                  # once: the dashboard reads data/processed (mounted, not baked in)
-docker compose up --build  # or: make docker-up
+make setup
 ```
 
-API on http://localhost:8000, dashboard on http://localhost:8501. One multi-stage image, non-root user,
-runtime dependencies pinned in `requirements.lock` (training-only MLflow and Optuna are left out).
+### 3. Prepare the dataset
 
-## API
+```bash
+make data
+```
 
-| Endpoint | Method | Behavior |
+This downloads the IBM Telco Customer Churn dataset, validates and processes it, and writes the train, validation, and test artifacts under `data/processed`.
+
+If the automatic download is unavailable, place the Kaggle dataset file named `WA_Fn-UseC_-Telco-Customer-Churn.csv` at:
+
+```text
+data/raw/telco_churn.csv
+```
+
+Then run `make data` again.
+
+### 4. Train and evaluate
+
+```bash
+make train
+make evaluate
+```
+
+Training compares candidate models, performs hyperparameter tuning, calibrates probabilities, selects a cost-sensitive threshold, and generates explainability artifacts. Evaluation scores the held-out test split and writes reports and figures.
+
+**The test split is intentionally read only by the evaluation step.** The evaluation command prevents accidental repeated scoring in the same checkout; use `--force` only when you explicitly intend to rerun it.
+
+### 5. Run the tests and linters
+
+```bash
+make test
+make lint
+```
+
+The test suite enforces a minimum coverage threshold of 80%.
+
+### 6. Start the services
+
+Run the API:
+
+```bash
+make api
+```
+
+Run the dashboard in a separate terminal:
+
+```bash
+make app
+```
+
+Open:
+
+- **API:** http://localhost:8000
+- **Interactive API documentation:** http://localhost:8000/docs
+- **Streamlit dashboard:** http://localhost:8501
+
+To inspect tracked experiments, run:
+
+```bash
+make mlflow
+```
+
+Then open the MLflow UI at the local address printed by the command.
+
+### Existing trained model
+
+The repository includes a trained model at `models/churn_model_v1.joblib` and committed evaluation reports. After installing dependencies and preparing the processed data, the API and dashboard can be started without retraining.
+
+## Run with Docker
+
+Prepare the processed dataset first, since the dashboard reads it from a mounted directory:
+
+```bash
+make data
+docker compose up --build
+```
+
+Alternatively:
+
+```bash
+make docker-up
+```
+
+The services are available at:
+
+| Service | URL |
+|---|---|
+| FastAPI | http://localhost:8000 |
+| FastAPI documentation | http://localhost:8000/docs |
+| Streamlit | http://localhost:8501 |
+
+The application uses a multi-stage Docker build, runs as a non-root user, and installs pinned runtime dependencies from `requirements.lock`. Training-only dependencies such as MLflow and Optuna are not included in the runtime image.
+
+## API reference
+
+The FastAPI service exposes the following endpoints:
+
+| Endpoint | Method | Description |
 |---|---|---|
-| `/health` | GET | Liveness and the model version loaded |
-| `/model/info` | GET | Metrics, threshold, features, training time |
-| `/predict` | POST | One customer, returns probability, risk tier, `will_target`, reasons |
-| `/predict/batch` | POST | Up to 1,000 customers; `?explain=false` skips reasons |
-| `/predict/csv` | POST | Upload a CSV (max 1,000 rows, 2 MB); returns it with score columns added |
+| `/health` | GET | Service health and loaded model version |
+| `/model/info` | GET | Model metadata, evaluation metrics, threshold, and feature information |
+| `/predict` | POST | Score one customer and return probability, risk tier, targeting decision, and reasons |
+| `/predict/batch` | POST | Score up to 1,000 customers; use `?explain=false` to skip explanations |
+| `/predict/csv` | POST | Score an uploaded CSV (up to 1,000 rows and 2 MB) and return the input data with score columns |
+
+### Example: score one customer
 
 ```bash
-curl -s -X POST localhost:8000/predict -H "Content-Type: application/json" -d '{
-  "gender": "Female", "SeniorCitizen": 0, "Partner": "No", "Dependents": "No", "tenure": 2,
-  "PhoneService": "Yes", "MultipleLines": "No", "InternetService": "Fiber optic",
-  "OnlineSecurity": "No", "OnlineBackup": "No", "DeviceProtection": "No", "TechSupport": "No",
-  "StreamingTV": "No", "StreamingMovies": "No", "Contract": "Month-to-month",
-  "PaperlessBilling": "Yes", "PaymentMethod": "Electronic check",
-  "MonthlyCharges": 89.1, "TotalCharges": 178.2}'
+curl -X POST "http://localhost:8000/predict" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "gender": "Female",
+    "SeniorCitizen": 0,
+    "Partner": "No",
+    "Dependents": "No",
+    "tenure": 2,
+    "PhoneService": "Yes",
+    "MultipleLines": "No",
+    "InternetService": "Fiber optic",
+    "OnlineSecurity": "No",
+    "OnlineBackup": "No",
+    "DeviceProtection": "No",
+    "TechSupport": "No",
+    "StreamingTV": "No",
+    "StreamingMovies": "No",
+    "Contract": "Month-to-month",
+    "PaperlessBilling": "Yes",
+    "PaymentMethod": "Electronic check",
+    "MonthlyCharges": 89.1,
+    "TotalCharges": 178.2
+  }'
 ```
 
-returns a probability of about 0.73, tier `High`, `will_target: true`, and reasons such as
-"Tenure of 2 months raises churn risk" and "Month-to-month contract raises churn risk". Invalid input
-(a bad category, a missing field, an out-of-range number) gets a 422 that names the field.
+The response includes a churn probability, a risk tier, a `will_target` decision, and plain-English explanations. Invalid categories, missing fields, and out-of-range values are rejected with a descriptive HTTP 422 response.
 
 ## Dashboard
 
-| Page | What it does |
+The Streamlit application provides four pages:
+
+| Page | Capabilities |
 |---|---|
-| Overview | Churn rate, and churn by contract, tenure and services, with filters |
-| Model | Test metrics with confidence intervals, curves, SHAP, slices, model comparison |
-| Score a customer | Form, probability gauge, plain-English reasons, SHAP waterfall |
-| Campaign simulator | Sliders for budget, offer cost, success rate and lifetime value; ranked target list; CSV download |
+| **Overview** | Overall churn rate and churn breakdowns by contract, tenure, and service, with filters |
+| **Model** | Held-out metrics and confidence intervals, evaluation curves, SHAP analysis, data slices, and model comparison |
+| **Score a customer** | Interactive customer form, churn-probability gauge, plain-English reasons, and SHAP waterfall |
+| **Campaign simulator** | Budget and business-assumption controls, ranked target list, strategy comparison, and CSV export |
 
-| Overview | Model |
-|---|---|
-| ![Overview](docs/screenshots/overview.png) | ![Model](docs/screenshots/model.png) |
+## Data drift check
 
-| Score a customer | Campaign simulator |
-|---|---|
-| ![Score a customer](docs/screenshots/score-a-customer.png) | ![Campaign simulator](docs/screenshots/campaign-simulator.png) |
-
-## Monitoring
-
-`scripts/drift_check.py` computes the Population Stability Index per feature between the training data and
-a new file and flags any feature above 0.2 (exit code 1 if so):
+The repository includes a Population Stability Index (PSI) utility to compare a new customer file with the training data distribution.
 
 ```bash
 python scripts/drift_check.py new_customers.csv --out drift.csv
 ```
 
-It is a demonstration of the idea on a file, not a live service.
+Features with PSI greater than **0.2** are flagged. The script exits with code 1 when a feature crosses this threshold.
 
-## Repository layout
+This is an offline demonstration for a supplied file, not a continuously running production monitoring service.
 
+## Project structure
+
+```text
+ChurnGuard/
+├── configs/
+│   ├── model.yaml              # Model and training configuration
+│   └── business.yaml           # Retention economics assumptions
+├── src/churnguard/
+│   ├── data/                   # Loading, validation, cleaning, splitting, drift
+│   ├── features/               # Feature engineering and preprocessing
+│   ├── models/                 # Model factory, CV, tuning, calibration, MLflow
+│   ├── evaluation/             # Metrics, threshold selection, plots, test evaluation
+│   ├── explain/                 # SHAP explanations and plain-English reasons
+│   ├── api/                    # FastAPI app, schemas, CSV validation
+│   └── predict.py              # Shared inference entry point
+├── app/                        # Streamlit dashboard
+├── scripts/                    # Dataset download and drift-check utilities
+├── tests/                      # Unit and integration tests
+├── models/                     # Trained model artifacts
+├── reports/                    # Model card, comparisons, evaluation outputs
+├── docs/screenshots/            # Dashboard screenshots
+├── notebooks/                  # Exploratory data analysis
+├── Dockerfile
+├── docker-compose.yml
+├── Makefile
+├── pyproject.toml
+└── requirements.lock
 ```
-configs/        model.yaml, business.yaml (all settings and assumptions)
-src/churnguard/
-  data/         load, validate, clean, split, drift (PSI)
-  features/     feature engineering and the preprocessing pipeline
-  models/       model factory, CV, Optuna tuning, calibration, MLflow tracking
-  evaluation/   metrics, cost-based threshold, plots, the run-once test evaluation
-  explain/      SHAP explainer, plain-English reasons, global SHAP report
-  api/          FastAPI app, schemas, CSV validation
-  predict.py    the single inference entrypoint
-app/            Streamlit dashboard (4 pages)
-scripts/        download_data.py, drift_check.py
-tests/          pytest suite (data, features, leakage, metrics, cost, models, API, app, drift)
-reports/        model card, comparison, evaluation, figures
-notebooks/      01_eda.ipynb (training split only)
-```
 
-## Development
+## Engineering practices
 
-CI (`.github/workflows/ci.yml`) runs ruff, black and pytest with an 80% coverage floor on every push.
-Pre-commit hooks run the same linters locally (`pre-commit install`). The business simulation is labelled
-as assumption-driven everywhere it appears (dashboard, API docs, model card).
+ChurnGuard is designed to make the workflow reproducible and the evaluation credible:
+
+- **Leakage prevention:** preprocessing and feature transformations are part of the scikit-learn pipeline and are fitted on training folds only.
+- **Test-set isolation:** model selection, calibration, and threshold selection use training and validation data. The held-out test set is reserved for final evaluation.
+- **Single inference path:** FastAPI and Streamlit both call `src/churnguard/predict.py`, avoiding divergent prediction logic.
+- **Configuration-driven behavior:** model settings live in `configs/model.yaml`; business assumptions live in `configs/business.yaml`.
+- **Reproducibility:** random seeds are fixed at 42 and dependencies are pinned for the runtime environment.
+- **Automated quality checks:** GitHub Actions runs Ruff, Black, and pytest with an 80% coverage floor. Pre-commit hooks provide the same linting checks locally.
+
+The clean-checkout validation recorded for this project completed `make setup data train evaluate test lint` successfully, with 179 tests passing at 92% coverage. The retrained model reproduced the committed test metrics and selected threshold.
+
+## Documentation
+
+- [Product requirements document](PRD.md)
+- [Model card: methodology, results, and limitations](reports/MODEL_CARD.md)
+- [Model comparison report](reports/model_comparison.md)
+- [Development and build rules](CLAUDE.md)
+
+---
+
+**ChurnGuard** is an applied machine-learning project demonstrating how churn predictions can be developed, evaluated, explained, and exposed through usable decision-support interfaces. The evaluation and financial simulation should be interpreted within the dataset and assumptions documented above.
