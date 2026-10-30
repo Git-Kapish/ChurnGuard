@@ -1,5 +1,13 @@
 # ChurnGuard
 
+[![Python 3.11](https://img.shields.io/badge/python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-API-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-dashboard-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
+[![scikit--learn](https://img.shields.io/badge/scikit--learn-ML-F7931E?logo=scikitlearn&logoColor=white)](https://scikit-learn.org/)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![CI](https://github.com/Git-Kapish/ChurnGuard/actions/workflows/ci.yml/badge.svg)](https://github.com/Git-Kapish/ChurnGuard/actions/workflows)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 **An end-to-end, explainable telecom customer churn prediction and retention decision-support system.**
 
 ChurnGuard helps telecom teams identify customers at risk of leaving, understand the factors contributing to each prediction, and prioritize retention outreach under a configurable budget.
