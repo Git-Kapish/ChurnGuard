@@ -6,7 +6,7 @@ ChurnGuard helps telecom teams identify customers at risk of leaving, understand
 
 The project brings together a reproducible machine-learning workflow, model evaluation, explainability, a cost-sensitive campaign simulator, a FastAPI inference service, and a Streamlit dashboard. The API and dashboard share a single inference implementation, and the application can be run locally or with Docker Compose.
 
-> **Important — simulated business economics:** Offer cost, retention success rate, and customer lifetime value are configurable assumptions in `configs/business.yaml`. They are not measured business outcomes. Model-quality metrics are computed on held-out data; financial results are illustrative simulations based on those assumptions.
+> **Important — assumption-driven simulated business economics:** Offer cost, retention success rate, and customer lifetime value are configurable assumptions in `configs/business.yaml`. They are not measured business outcomes. Model-quality metrics are computed on held-out data; financial results are illustrative simulations based on those assumptions.
 
 ## Table of contents
 
@@ -41,11 +41,11 @@ The following results are from the **held-out test split of 1,057 customers**. T
 
 | Metric | Test result | 95% confidence interval | Project target |
 |---|---:|---:|---:|
-| PR-AUC (primary metric) | **0.673** | 0.613–0.731 | ≥ 0.64 |
-| ROC-AUC | **0.842** | 0.816–0.869 | ≥ 0.84 |
+| PR-AUC (primary metric) | **0.673** | [0.613, 0.731] | ≥ 0.64 |
+| ROC-AUC | **0.842** | [0.816, 0.869] | ≥ 0.84 |
 | Recall at selected threshold | **0.861** | 0.820–0.901 | ≥ 0.70 |
 | Top-decile lift | **3.05** | 2.69–3.39 | ≥ 2.8 |
-| Brier score | **0.138** | 0.125–0.151 | ≤ 0.15 |
+| Brier score | **0.138** | [0.125, 0.151] | ≤ 0.15 |
 
 The point estimates meet the stated accuracy targets. The confidence interval for ROC-AUC extends below its target, so that result should be interpreted with appropriate caution. At the selected low threshold, precision is 0.45; the operating point prioritizes recall so that more potential churners are identified.
 
@@ -77,7 +77,7 @@ The selected cost-sensitive threshold is **0.140**. On the test split, under the
 | **Cost-optimal threshold (0.140)** | **533** | **25,640** | **86%** |
 | Best list within a 3,000 budget | 148 | 13,240 | 38% |
 
-These are simulated values, not realized revenue or measured campaign results. Under the current assumptions, contacting everyone is already profitable; the model's value is in prioritizing customers and avoiding outreach to lower-risk customers when resources are constrained.
+These assumption-driven values are simulated, not realized revenue or measured campaign results. Under the current assumptions, contacting everyone is already profitable; the model's value is in prioritizing customers and avoiding outreach to lower-risk customers when resources are constrained, improving simulated net value by **4,630** versus contacting everyone.
 
 For methodology, assumptions, confidence intervals, and limitations, see the [model card](reports/MODEL_CARD.md).
 
