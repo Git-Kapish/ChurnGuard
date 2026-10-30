@@ -24,7 +24,7 @@ class BalancedXGBClassifier(XGBClassifier):
     training labels only (a fixed scale_pos_weight would peek at validation-fold labels).
     """
 
-    def fit(self, X, y, sample_weight=None, **kwargs):  # noqa: ANN001, ANN003
+    def fit(self, X, y, sample_weight=None, **kwargs):
         """Fit with balanced sample weights, multiplied into any weights passed in."""
         weights = compute_sample_weight("balanced", y)
         if sample_weight is not None:
@@ -32,7 +32,7 @@ class BalancedXGBClassifier(XGBClassifier):
         return super().fit(X, y, sample_weight=weights, **kwargs)
 
 
-def _classifier(name: str, imbalance: str, params: dict[str, Any], seed: int):  # noqa: ANN202
+def _classifier(name: str, imbalance: str, params: dict[str, Any], seed: int):
     weighted = imbalance == "class_weight"
     if name == "dummy":
         return DummyClassifier(strategy="prior")

@@ -51,7 +51,7 @@ def _scores(y: np.ndarray, proba: np.ndarray) -> dict[str, float]:
     return {**classification_scores(y, proba), "top_decile_lift": top_decile_lift(y, proba)}
 
 
-def select_winner(tuned: dict[str, Any], Xtr, ytr, Xv, yv, seed: int):  # noqa: ANN001, ANN201
+def select_winner(tuned: dict[str, Any], Xtr, ytr, Xv, yv, seed: int):
     """Fit each tuned candidate on train; the best validation PR-AUC wins."""
     fitted, scores = {}, {}
     for name, info in tuned.items():

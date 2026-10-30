@@ -20,12 +20,11 @@ jobs:
             pyproject.toml
             requirements.lock
 
-      - name: Install (runtime pinned, then dev and training extras)
-        # The lock keeps XGBoost, scikit-learn etc. at the versions the committed model was
-        # built and tested with, so unpickling it behaves the same here as locally.
-        run: |
-          pip install -r requirements.lock
-          pip install -e ".[dev,train]"
+      - name: Install (dev and training extras, runtime pinned by the lock)
+        # The lock keeps XGBoost, scikit-learn etc. at the versions the committed model was built
+        # with. It names the Docker-only `xgboost-cpu` build; mapping it back to `xgboost` makes the
+        # pin apply here too (otherwise pip would add a second, unpinned XGBoost).
+        run: pip install -e ".[dev,train]" -c <(sed 's/^xgboost-cpu==/xgboost==/' requirements.lock)
 
       - name: Ruff
         run: ruff check .

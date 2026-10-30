@@ -34,7 +34,7 @@ from churnguard.models.artifact import METADATA_PATH, MODEL_PATH, load_bundle, l
 log = logging.getLogger("churnguard.evaluate")
 REPORTS_DIR = ROOT / "reports"
 
-# PRD section 7 targets: (name, direction, bound). "max" means the value must be <= bound.
+# PRD section 7 targets: metric -> (comparison, bound).
 PRD_TARGETS = {
     "roc_auc": (">=", 0.84),
     "pr_auc": (">=", 0.64),

@@ -65,7 +65,7 @@ def setup(tracking_uri: str, experiment: str) -> None:
 
 
 @contextmanager
-def run(name: str, params: dict, nested: bool = False):  # noqa: ANN201
+def run(name: str, params: dict, nested: bool = False):
     """Start an MLflow run tagged with data checksum and git hash, logging `params`."""
     with mlflow.start_run(run_name=name, nested=nested) as active:
         mlflow.set_tags({"data_sha256": data_checksum(), "git_hash": git_hash()})

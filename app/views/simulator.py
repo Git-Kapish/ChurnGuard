@@ -32,10 +32,7 @@ def _assumptions() -> Business:
     return Business(offer_cost=cost, success_rate=success, clv=clv, budget=budget)
 
 
-def _pool() -> pd.DataFrame | None:
-    source = st.radio("Customers to rank", [VALIDATION, UPLOAD], horizontal=True)
-    if source == VALIDATION:
-        return common.validation_pool()
+def _uploaded_pool() -> pd.DataFrame | None:
     upload = st.file_uploader("CSV with the Telco customer columns (up to 1,000 rows)", type="csv")
     if upload is None:
         st.info("Upload a CSV to rank your own customers.")
@@ -92,7 +89,10 @@ def render() -> None:
         f"(cost / (success rate x lifetime value)). The budget pays for at most "
         f"**{b.max_targets:,}** offers."
     )
-    pool = _pool()
+    from_validation = (
+        st.radio("Customers to rank", [VALIDATION, UPLOAD], horizontal=True) == VALIDATION
+    )
+    pool = common.validation_pool() if from_validation else _uploaded_pool()
     if pool is None:
         return
 
@@ -117,7 +117,7 @@ def render() -> None:
         a, c = st.columns(2)
         a.metric("Actual churners on the list", f"{plan.churners_reached} of {int(y.sum())}")
         c.metric("Net value using actual outcomes", f"{plan.realized_net_value:+,.0f}")
-        if pool is not None and len(pool) == 1056:
+        if from_validation:
             st.caption(
                 "Validation customers were used to pick the production threshold, so "
                 "this is slightly optimistic. The test split is untouched here."

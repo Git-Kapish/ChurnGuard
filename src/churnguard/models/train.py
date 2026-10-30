@@ -26,9 +26,7 @@ log = logging.getLogger("churnguard.train")
 REPORTS_DIR = ROOT / "reports"
 
 
-def _evaluate(
-    name: str, imbalance: str, X, y, folds, seed: int, stage: str
-) -> dict[str, float]:  # noqa: ANN001
+def _evaluate(name: str, imbalance: str, X, y, folds, seed: int, stage: str) -> dict[str, float]:
     """CV one configuration and log it to MLflow; returns the mean/std summary."""
     start = time.time()
     scores = cross_validate(build_estimator(name, imbalance, seed=seed), X, y, folds)
